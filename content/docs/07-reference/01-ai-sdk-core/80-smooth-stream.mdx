@@ -5,7 +5,7 @@ description: Stream transformer for smoothing text and reasoning output
 
 # `smoothStream()`
 
-`smoothStream` is a utility function that creates a TransformStream
+`smoothStream` is a utility function that creates a transform factory
 for the `streamText` `experimental_transform` option
 to smooth out text and reasoning streaming by buffering and releasing complete chunks with configurable delays.
 This creates a more natural reading experience when streaming text and reasoning responses.
@@ -121,6 +121,14 @@ smoothStream({
 #### Custom callback chunking
 
 To use a custom callback for chunking, pass a function to the `chunking` option.
+The callback receives the current buffer and must return a non-empty prefix of
+that buffer to emit as the next chunk. Return `null` or `undefined` to wait for
+more text. Returning an empty string or a string that is not a prefix throws an
+error.
+
+Include any text before the delimiter in the returned chunk, as in the example
+below. Returning only the delimiter would not be a prefix unless the buffer
+starts with it.
 
 ```ts
 smoothStream({
@@ -139,7 +147,12 @@ smoothStream({
 
 ### Returns
 
-Returns a `TransformStream` that:
+Returns a transform factory with the type
+`(options: { tools: TOOLS }) => TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>`.
+Pass this factory to `streamText` through `experimental_transform`; it is not
+itself a `TransformStream` to pass directly to `pipeThrough`.
+
+Each invocation of the factory creates a new stream with its own buffer that:
 
 - Buffers incoming text and reasoning chunks
 - Releases content when the chunking pattern is encountered
